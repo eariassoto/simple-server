@@ -4,6 +4,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"net/http/httputil"
 )
 
 const (
@@ -31,21 +32,32 @@ type Person struct {
 	Name string
 }
 
+func prettyPrintRequest(req *http.Request) {
+	requestDump, err := httputil.DumpRequest(req, true)
+	if err != nil {
+		log.Println(err)
+	}
+	log.Println(string(requestDump))
+}
+
+func handleRequest(w http.ResponseWriter, r *http.Request) {
+	prettyPrintRequest(r)
+	t := template.New("person template")
+
+	t, _ = t.Parse(HTML_TEMPLATE)
+
+	personName := r.URL.Query().Get("name")
+	if personName == "" {
+		personName = "World"
+	}
+
+	p := Person{Name: personName}
+	t.Execute(w, p)
+}
+
 func main() {
 	port := ":8081"
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		t := template.New("person template")
-
-		t, _ = t.Parse(HTML_TEMPLATE)
-
-		personName := r.URL.Query().Get("name")
-		if personName == "" {
-			personName = "World"
-		}
-
-		p := Person{Name: personName}
-		t.Execute(w, p)
-	})
+	http.HandleFunc("/", handleRequest)
 
 	log.Printf("Listening on port [%s]", port)
 	log.Fatal(http.ListenAndServe(port, nil))
